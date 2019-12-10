@@ -15,8 +15,7 @@ pip3 install -r requirements.txt
 ```
 
 ## Execution
-
-You can run the script directly
+This project is a CLI based and you can run the following commands to test the project
 ```bash
 # Show help page
 python3 src/main/python/tech_test.py -h
@@ -38,6 +37,7 @@ There is still a lot of improvements that can be made on this project but I've c
 * Add Paging for the musicbrainz API as it currently limited to 100 results in some cases 
 * Add additional handling for non-studio albums as we are currently getting the lyrics for the same track across many albums
 * Look at examples where lyrics can't be found due to slight mismatch in song name between the 2 APIs
+    * This is difficult as the Lyrics API doesn't support browsing 
 * Extend the unit test suite
 * Extend the pandas data analysis
 
