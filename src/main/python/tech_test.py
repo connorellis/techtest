@@ -13,38 +13,37 @@ musicbrainz_ns = {'ns': 'http://musicbrainz.org/ns/mmd-2.0#',
                   'ns2': 'http://musicbrainz.org/ns/ext#-2.0'}
 
 def main(input):
-    request_headers = {'method': 'GET',
-                       'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'
-                                     ' Chrome/74.0.3729.157 Safari/537.36'
-                       }
+
 
     # for each artist in the payload response
-    artist_id, artist_name = get_artist_id(input, request_headers)
+    artist_id, artist_name = get_artist_id(input)
 
-    # artist_id = 'cc197bad-dc9c-440d-a5b5-d52ba2e14234'
-
-    tracklists = get_artist_release_groups(artist_id, request_headers)
+    track_lists = get_artist_release_groups(artist_id)
 
     # this list will contain the combinations release_name, track_name, lyric_count for analysis
-    dataset = []
+    dataset = get_track_lyrics(track_lists)
+
+    run_analysis(dataset)
 
 
+def get_track_lyrics(tracklists):
     # for each release, for each track in tracklist
+    data_set = []
     for release in tracklists.keys():
         for track in tracklists[release]:
             lyrics_api = lyricsovh_api_base_url + '/{0}/{1}'.format(artist_name, track)
 
             try:
-                lyrics = make_api_request(lyrics_api, request_headers).json()['lyrics']
+                lyrics = make_api_request(lyrics_api).json()['lyrics']
                 number_of_words = len(lyrics.split())
             except ConnectionError:
                 # if we can't get the lyrics then set the data point to None (we might be able to fill it in later)
                 number_of_words = None
                 print("unable to get lyrics at url 404: ", lyrics_api)
 
-            dataset.append([release, track, number_of_words])
+            data_set.append([release, track, number_of_words])
 
-    run_analysis(dataset)
+    return data_set
 
 
 def run_analysis(data):
@@ -63,11 +62,11 @@ def run_analysis(data):
     print(tabulate(albums, headers='keys', tablefmt='psql'))
 
 
-def get_artist_id(input, headers):
+def get_artist_id(input):
 
     artists_api = '{0}/artist/?query=artist:{1}'.format(musicbrainz_api_base_url, input)
 
-    matching_artists_xml = make_api_request(artists_api, headers).text
+    matching_artists_xml = make_api_request(artists_api).text
     matching_artists_root = ElementTree.fromstring(matching_artists_xml)
 
     near_matches = []
@@ -98,7 +97,7 @@ def get_artist_id(input, headers):
     return artist_id, artist_name
 
 
-def get_artist_release_groups(artist_mbid, headers):
+def get_artist_release_groups(artist_mbid):
 
     """
     https://musicbrainz.org/doc/Development/XML_Web_Service/Version_2
@@ -109,7 +108,7 @@ def get_artist_release_groups(artist_mbid, headers):
     """
     release_group_api = '{0}/release-group?artist={1}&type=album&limit=100'.format(musicbrainz_api_base_url, artist_mbid)
 
-    release_list_group_xml = make_api_request(release_group_api, headers).text
+    release_list_group_xml = make_api_request(release_group_api).text
     release_list_group_root = ElementTree.fromstring(release_list_group_xml)
 
     release_list = {}
@@ -124,7 +123,7 @@ def get_artist_release_groups(artist_mbid, headers):
             continue
 
         # Function returns an official release or None if none found
-        release_id = get_official_release_id(release_gp_id, headers)
+        release_id = get_official_release_id(release_gp_id)
 
         # check we hae a valid release_id
         if not release_id:
@@ -134,18 +133,18 @@ def get_artist_release_groups(artist_mbid, headers):
         print('Release title: ', release_title)
 
         # get tracklist for release
-        tracklist = get_release_tracks(release_id, headers)
+        tracklist = get_release_tracks(release_id)
 
         release_list[release_title] = tracklist
 
     return release_list
 
 
-def get_official_release_id(artist_rg_mbid, headers):
+def get_official_release_id(artist_rg_mbid):
 
     releases_api = '{0}/release?release-group={1}&'.format(musicbrainz_api_base_url, artist_rg_mbid)
 
-    release_list_xml = make_api_request(releases_api, headers).text
+    release_list_xml = make_api_request(releases_api).text
     release_list_root = ElementTree.fromstring(release_list_xml)
 
     for release in release_list_root.findall('ns:release-list/ns:release', musicbrainz_ns):
@@ -162,11 +161,11 @@ def get_official_release_id(artist_rg_mbid, headers):
     return None
 
 
-def get_release_tracks(release_mbid, headers):
+def get_release_tracks(release_mbid):
 
     releases_api = '{0}/release/{1}?inc=recordings'.format(musicbrainz_api_base_url, release_mbid)
 
-    release_list_xml = make_api_request(releases_api, headers).text
+    release_list_xml = make_api_request(releases_api).text
 
     release_list_root = None
     try:
@@ -183,7 +182,12 @@ def get_release_tracks(release_mbid, headers):
     return track_list
 
 
-def make_api_request(url, headers):
+def make_api_request(url):
+
+    headers = {'method': 'GET',
+               'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'
+               ' Chrome/74.0.3729.157 Safari/537.36'
+               }
 
     # try API 3 times in case of 429 error
     for x in range(1, 3):
@@ -217,7 +221,7 @@ def make_api_request(url, headers):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Provides some metrics of the number of lyrics in the artists song')
+    parser = argparse.ArgumentParser(description='Provides some metrics on the number of lyrics in the artists songs')
     parser.add_argument("-a", "--artist", type=str, required=True,
                         help="Name of the artist")
     # Parse Command Line Arguments
