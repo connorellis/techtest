@@ -2,7 +2,7 @@
 ## Initial Setup
 
 
-You will need python3, and the moduled venv and pybuilder.
+You will need to have python3.x installed, and the following modules:
 * [venv](https://docs.python.org/3/library/venv.html) is used to create virtual environments
 * [pybuilder](https://pybuilder.github.io/) is a build tool for Python
 
