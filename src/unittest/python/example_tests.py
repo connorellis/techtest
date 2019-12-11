@@ -18,7 +18,7 @@ class ExampleTest(unittest.TestCase):
 
         exception = None
         try:
-            get_artist_id("I'm a test input", {})
+            get_artist_id("I'm a test input")
         except AssertionError as e:
             exception = e
 
